@@ -21,9 +21,16 @@
        - joy: 22.7%
        - sadness: 21.6%
        - [links](http://saifmohammad.com/WebPages/TweetEmotionIntensity-dataviz.html)
+   - emtion casue:
+     - emtion tags are as follows:
+       - happiness
+       - sadness
+       - suprise
+       - disgust
+       - [links](https://www.site.uottawa.ca/~diana/publications/90420152.pdf)
 
 2. Proposed architecture
    - Bert + classification module
      - testable for classification variation:
        - resnet
-       - fnn
+       - fully connected layers

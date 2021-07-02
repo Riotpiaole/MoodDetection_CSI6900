@@ -59,6 +59,7 @@ class ContextualLSTMCell(nn.Module):
         for parameter in self.parameters():
             init.uniform_(parameter, -stdv, stdv)
 
+
     def forward(self, x, h, c, topic):
         """
         :param x: 当前时刻的输入
@@ -86,8 +87,12 @@ class ContextualLSTMCell(nn.Module):
 
     
     def init_state(self, batch_size, hidden_size):
-        h_init = Variable(torch.rand(batch_size, hidden_size).t())
-        c_init = Variable(torch.rand(batch_size, hidden_size).t())
+        if self.w_ii.is_cuda:
+            h_init = Variable(torch.rand(batch_size, hidden_size).t()).cuda()
+            c_init = Variable(torch.rand(batch_size, hidden_size).t()).cuda()
+        else:
+            h_init = Variable(torch.rand(batch_size, hidden_size).t())
+            c_init = Variable(torch.rand(batch_size, hidden_size).t())
         return h_init, c_init
 
 
@@ -156,6 +161,7 @@ class ContextualEmotionLSTM(nn.Module):
         contextual_type = 8, 
         output_size=1,
         bias=True):
+
         super(ContextualEmotionLSTM, self).__init__()
 
         self.num_steps = num_steps
@@ -165,25 +171,33 @@ class ContextualEmotionLSTM(nn.Module):
         self.contextual_type = contextual_type
         self.bias = bias
         self.output_size = output_size
+        self.max_sequence_size = MAX_SEQUENCE
+        
         self.contextual_lstm = ContextualLSTM( 
             self.num_steps,
+            self.num_layers,
             self.input_size,
             self.hidden_size,
             self.contextual_type, 
             self.bias)
 
-        self.linear = nn.Linear(
-            self.hidden_size,
-            self.output_size
+        self.emotion_linear = nn.Linear(
+            self.max_sequence_size,
+            contextual_type
         )
 
-    def foward(self,inputs, context):
-        output, (h_final, c_final) = self.contextual_lstm(inputs, context)
+        self.next_word_linear= nn.Linear( MAX_SEQUENCE , VOCAB_SIZE)
+        self.embedding = nn.Embedding(VOCAB_SIZE + 1, input_size)
 
-        emotion_prediction = self.linear(h_final.t())
+    def forward(self, inputs, contexts):
+        embedded_tokens = self.embedding(inputs)
+        output, (h_final, _) = self.contextual_lstm(embedded_tokens, contexts)
+        emotion_prediction = self.emotion_linear(h_final[-1])
         result = torch.sigmoid(emotion_prediction)
         
-        return output , (h_final, c_final), result
+        linearized_next_word = self.next_word_linear(h_final)
+        next_word = torch.sigmoid(linearized_next_word) 
+        return output , next_word , result
 
 
 
@@ -201,7 +215,7 @@ def predict(model, text, next_words=1):
     outputs = []
     for i in range(0, next_words):
         
-        y_pred, (state_h, state_c) = model(x, (state_h, state_c))
+        y_pred, next_word = model(x, (state_h, state_c))
 
         last_word_logits = y_pred[0][-1]
         p = torch.nn.functional.softmax(last_word_logits, dim=0).detach().numpy()

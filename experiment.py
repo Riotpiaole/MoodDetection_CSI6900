@@ -1,7 +1,7 @@
 from platform import processor
 import torch 
 from prepare_dataset import load_dataset
-from lstm import ContextualLSTM
+from lstm import ContextualEmotionLSTM, ContextualLSTM
 from pdb import set_trace
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
@@ -62,12 +62,22 @@ if __name__ == "__main__":
         df, batch_size=batch_size,
         num_workers=3
     )
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     model = ContextualLSTM(batch_size, 10, input_size, hidden_size, contextual_type_size)
+    model = ContextualEmotionLSTM(
+        num_steps=1,
+        num_layers=20,
+        input_size=input_size,
+        hidden_size=hidden_size,
+        contextual_type=contextual_type_size).to(device)
+
     embedding = nn.Embedding(VOCAB_SIZE + 1, input_size)
     for token, context in loader:
         break
-    process = embedding(token.long())
-    output, (h_state ,  c_state) = model(process, context)        
+    token = token.long().to(device)
+    context = context.to(device)
+    output , (next_word , result) = model(token, context)        
         # output, (h_final, c_final) = model.forward(process, contexts)
     # context = [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]
     # lines = []

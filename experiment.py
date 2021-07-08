@@ -1,7 +1,7 @@
 from platform import processor
 import torch 
-from prepare_dataset import load_dataset
-from lstm import ContextualEmotionLSTM, ContextualLSTM
+from prepare_dataset import load_dataset, SequenctialTextDataSet
+from lstm import ContextualEmotionLSTM
 from pdb import set_trace
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
@@ -9,7 +9,7 @@ import torch.nn as nn
 import numpy as np
 import random
 from torch.autograd import Variable
-from constants import VOCAB_SIZE , MAXNUM_STEPS
+from constants import MAX_SEQUENCE, VOCAB_SIZE , MAXNUM_STEPS
 
 import torch
 from torch import nn
@@ -50,12 +50,10 @@ from torch.utils.data import DataLoader
 
 if __name__ == "__main__":
     dataset_dict = load_dataset('embedding')
-    # for token, mask, context in df:
-    #     print(token.shape, mask.shape, context.shape)
-    #     set_trace()
+    
     batch_size = 5
-    input_size = 8
-    hidden_size = 8
+    input_size = 128
+    hidden_size = 128
     contextual_type_size = 8
     df = dataset_dict['dataset']
     loader = DataLoader(
@@ -64,21 +62,23 @@ if __name__ == "__main__":
     )
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    model = ContextualLSTM(batch_size, 10, input_size, hidden_size, contextual_type_size)
+    # model = ContextualLSTM(batch_size, 10, input_size, hidden_size, contextual_type_size).to(device)
     model = ContextualEmotionLSTM(
-        num_steps=1,
+        num_steps=batch_size,
         num_layers=20,
         input_size=input_size,
         hidden_size=hidden_size,
         contextual_type=contextual_type_size).to(device)
 
-    embedding = nn.Embedding(VOCAB_SIZE + 1, input_size)
-    for token, context in loader:
+    for token, next_token, context, next_context in loader:
         break
     token = token.long().to(device)
-    context = context.to(device)
-    output , (next_word , result) = model(token, context)        
-        # output, (h_final, c_final) = model.forward(process, contexts)
+    context = context.long().to(device)
+    states = model.init_state()
+    lstm_output_prediciton , next_word_predicition , next_emotion_prediction, next_state = model(token, context, states)  
+    catgorical_cross_critierion = nn.CrossEntropyLoss(reduction='mean') 
+         
+    # output, (h_final, c_final) = model.forward(process, contexts)
     # context = [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]
     # lines = []
     # line = []

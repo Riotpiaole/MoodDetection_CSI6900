@@ -2,4 +2,5 @@ EMNLP_dataset
 .DS_Store
 .vscode
 __pycache__
-dataset.pt
+*.pt
+outs
